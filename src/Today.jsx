@@ -6,6 +6,7 @@ export default function Today({
   count,
   streakMessage,
   todayCounted,
+  race,
   chestReady,
   onOpenChest,
   insightText,
@@ -32,6 +33,8 @@ export default function Today({
       >
         {streakMessage}
       </p>
+
+      {race}
 
       {chestReady && (
         <div

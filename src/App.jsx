@@ -8,6 +8,8 @@ import Chest from './Chest.jsx'
 import Today from './Today.jsx'
 import Me from './Me.jsx'
 import Login from './Login.jsx'
+import Race from './Race.jsx'
+import Progress from './Progress.jsx'
 import { INSIGHTS } from './insights.js'
 import { computeStats } from './stats.js'
 import { supabase } from './supabase.js'
@@ -19,6 +21,8 @@ const tasks = [
   { id: 'read', label: 'Read', detail: '10:00', color: 'var(--warm)', icon: '📖' },
   { id: 'journal', label: 'Journal', detail: '3 prompts + reading line', color: 'var(--calm)', icon: '✍️' },
 ]
+
+const TASK_IDS = tasks.map((t) => t.id)
 
 const tabs = [
   { id: 'today', icon: '🏠', label: 'Today' },
@@ -54,6 +58,17 @@ const initialScreen = () => {
 }
 
 const stamp = (day) => ({ ...day, _u: Date.now() })
+
+// Records when each task was first completed
+const withTimes = (day, id, value) => {
+  const t = { ...(day.t || {}) }
+  if (value) {
+    if (!t[id]) t[id] = Date.now()
+  } else {
+    delete t[id]
+  }
+  return t
+}
 
 // Newer edit wins, per day
 const merge = (local, rows) => {
@@ -260,7 +275,9 @@ export default function App() {
   const setField = (key, value) =>
     setData((prev) => {
       const day = prev[today] || {}
-      return { ...prev, [today]: stamp({ ...day, [key]: value }) }
+      const next = { ...day, [key]: value }
+      if (TASK_IDS.includes(key)) next.t = withTimes(day, key, value)
+      return { ...prev, [today]: stamp(next) }
     })
 
   const setPart = (key, value) =>
@@ -268,7 +285,9 @@ export default function App() {
       const day = prev[today] || {}
       const wo = { ...(day.wo || {}), [key]: value }
       const all = !!(wo.push && wo.tri && wo.plank)
-      return { ...prev, [today]: stamp({ ...day, wo, workout: all }) }
+      const next = { ...day, wo, workout: all }
+      next.t = withTimes(day, 'workout', all)
+      return { ...prev, [today]: stamp(next) }
     })
 
   const setJournal = (key, value) =>
@@ -280,7 +299,9 @@ export default function App() {
         (jr.learnt || '').trim() &&
         (jr.improve || '').trim()
       )
-      return { ...prev, [today]: stamp({ ...day, jr, journal: done }) }
+      const next = { ...day, jr, journal: done }
+      next.t = withTimes(day, 'journal', done)
+      return { ...prev, [today]: stamp(next) }
     })
 
   const onTask = (id) => {
@@ -423,6 +444,7 @@ export default function App() {
           count={count}
           streakMessage={streakMessage}
           todayCounted={stats.todayCounted}
+          race={<Race data={data} today={today} />}
           chestReady={chestReady}
           onOpenChest={() => setModal(true)}
           insightText={insightText}
@@ -442,20 +464,7 @@ export default function App() {
       )}
 
       {tab === 'progress' && (
-        <div>
-          <h1 style={{ marginBottom: 16 }}>Progress</h1>
-          <div style={{ background: 'var(--card)', borderRadius: 16, padding: 16, marginBottom: 14 }}>
-            <div style={{ fontWeight: 700 }}>
-              Level {stats.level} · {stats.xp} XP total
-            </div>
-            <div style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
-              Best streak: {stats.best} days · Current: {stats.streak}
-            </div>
-          </div>
-          <div style={{ color: 'var(--muted)', fontSize: 14 }}>
-            The 90-day map and your insight collection arrive in the next update.
-          </div>
-        </div>
+        <Progress data={data} today={today} stats={stats} seen={seen} />
       )}
 
       {tab === 'me' && (
