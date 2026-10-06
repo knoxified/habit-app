@@ -94,4 +94,19 @@ export default function Race({ data, today }) {
                       width: `${Math.min(100, (r.points / race.max) * 100)}%`,
                       height: '100%',
                       borderRadius: 6,
-                      background: r.isYou ? 'var(--warm)' :
+                      background: r.isYou ? 'var(--warm)' : '#4a5578',
+                      transition: 'width 0.5s ease',
+                    }}
+                  />
+                </div>
+                <div style={{ width: 26, textAlign: 'right', fontSize: 13, fontWeight: 700 }}>
+                  {r.points}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
