@@ -1,6 +1,7 @@
 :root {
   --bg: #0f1420;
   --card: #1a2133;
+  --line: #2a3350;
   --text: #eef1f7;
   --muted: #8b94a8;
   --calm: #2dd4bf;
@@ -11,11 +12,15 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { -webkit-tap-highlight-color: transparent; }
+
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: ui-rounded, system-ui, -apple-system, 'Segoe UI', sans-serif;
   min-height: 100vh;
 }
 
-#root { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+button { font-family: inherit; }
+
+#root { max-width: 480px; margin: 0 auto; padding: 16px 16px 170px; }

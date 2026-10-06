@@ -5,14 +5,23 @@ import Workout from './Workout.jsx'
 import Journal from './Journal.jsx'
 import JournalHistory from './JournalHistory.jsx'
 import Chest from './Chest.jsx'
-import Commitment from './Commitment.jsx'
+import Today from './Today.jsx'
+import Me from './Me.jsx'
+import { INSIGHTS } from './insights.js'
 import { computeStats } from './stats.js'
 
 const tasks = [
-  { id: 'meditate', label: 'Meditate', detail: '5:20', color: 'var(--calm)' },
-  { id: 'workout', label: 'Workout', detail: 'Pushups, triceps, plank', color: 'var(--energy)' },
-  { id: 'read', label: 'Read', detail: '10:00', color: 'var(--warm)' },
-  { id: 'journal', label: 'Journal', detail: '4 prompts', color: 'var(--calm)' },
+  { id: 'meditate', label: 'Meditate', detail: '5:20', color: 'var(--calm)', icon: '🧘' },
+  { id: 'workout', label: 'Workout', detail: 'Pushups, triceps, plank', color: 'var(--energy)', icon: '💪' },
+  { id: 'read', label: 'Read', detail: '10:00', color: 'var(--warm)', icon: '📖' },
+  { id: 'journal', label: 'Journal', detail: '3 prompts + reading line', color: 'var(--calm)', icon: '✍️' },
+]
+
+const tabs = [
+  { id: 'today', icon: '🏠', label: 'Today' },
+  { id: 'journal', icon: '📓', label: 'Journal' },
+  { id: 'progress', icon: '📈', label: 'Progress' },
+  { id: 'me', icon: '👤', label: 'Me' },
 ]
 
 const todayKey = () => {
@@ -39,22 +48,89 @@ const initialScreen = () => {
   return null
 }
 
-const linkBtn = {
-  border: 'none',
-  background: 'transparent',
-  color: 'var(--calm)',
-  fontSize: 15,
-  fontWeight: 600,
-  cursor: 'pointer',
-  padding: 8,
+function TopBar({ stats }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 18,
+      }}
+    >
+      <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--warm)' }}>🔥 {stats.streak}</div>
+      <div style={{ width: 130, textAlign: 'right' }}>
+        <div style={{ fontSize: 13, fontWeight: 700 }}>
+          Level {stats.level}
+          {stats.freezes > 0 && <span style={{ color: 'var(--calm)' }}> · ❄ {stats.freezes}</span>}
+        </div>
+        <div style={{ background: 'var(--card)', borderRadius: 6, height: 6, marginTop: 4 }}>
+          <div
+            style={{
+              width: `${(stats.xpInLevel / stats.xpNeed) * 100}%`,
+              height: '100%',
+              borderRadius: 6,
+              background: 'var(--warm)',
+              transition: 'width 0.4s ease',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TabBar({ tab, setTab }) {
+  return (
+    <nav
+      style={{
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'var(--card)',
+        borderTop: '1px solid var(--line)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        zIndex: 20,
+      }}
+    >
+      <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex' }}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              flex: 1,
+              border: 'none',
+              background: 'transparent',
+              padding: '10px 0 8px',
+              color: tab === t.id ? 'var(--warm)' : 'var(--muted)',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ fontSize: 22 }}>{t.icon}</div>
+            {t.label}
+          </button>
+        ))}
+      </div>
+    </nav>
+  )
 }
 
 export default function App() {
   const [data, setData] = useState(load)
   const [screen, setScreen] = useState(initialScreen)
+  const [tab, setTab] = useState('today')
+  const [modal, setModal] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
   const fileRef = useRef(null)
   const today = todayKey()
   const doneToday = data[today] || {}
+  const count = tasks.filter((t) => doneToday[t.id]).length
+  const allDone = count === tasks.length
+  const chestReady = allDone && !doneToday.chest
 
   useEffect(() => {
     try {
@@ -63,6 +139,10 @@ export default function App() {
       // storage unavailable, ignore
     }
   }, [data])
+
+  useEffect(() => {
+    if (chestReady && screen === null && tab === 'today' && !dismissed) setModal(true)
+  }, [chestReady, screen, tab, dismissed])
 
   const setField = (key, value) =>
     setData((prev) => {
@@ -90,16 +170,12 @@ export default function App() {
       return { ...prev, [today]: { ...day, jr, journal: done } }
     })
 
-  const onCardClick = (id) => {
+  const onTask = (id) => {
     if (id === 'journal') {
-      setScreen('journal')
+      setTab('journal')
       return
     }
-    if (id === 'meditate' || id === 'read' || id === 'workout') {
-      if (!doneToday[id]) setScreen(id)
-      return
-    }
-    setField(id, !doneToday[id])
+    if (!doneToday[id]) setScreen(id)
   }
 
   const exportData = () => {
@@ -167,26 +243,21 @@ export default function App() {
     )
   }
 
-  if (screen === 'journal') {
-    return (
-      <Journal
-        entry={doneToday.jr || {}}
-        readingLine={doneToday.readingLine}
-        onChange={setJournal}
-        onClose={() => setScreen(null)}
-        onHistory={() => setScreen('history')}
-      />
-    )
-  }
-
   if (screen === 'history') {
     return <JournalHistory data={data} onClose={() => setScreen(null)} />
   }
 
   const stats = computeStats(data, today)
-  const count = tasks.filter((t) => doneToday[t.id]).length
-  const allDone = count === tasks.length
   const next = tasks.find((t) => !doneToday[t.id])
+  const seen = new Set(
+    Object.values(data)
+      .map((d) => d?.chest?.insightId)
+      .filter(Boolean)
+  )
+  const chest = doneToday.chest
+  const insight = chest ? INSIGHTS.find((i) => i.id === chest.insightId) : null
+  const insightText = insight?.text || chest?.quote || null
+  const insightTag = insight?.tag || 'Note'
 
   const streakMessage = stats.todayCounted
     ? 'Streak safe for today ✓'
@@ -196,172 +267,107 @@ export default function App() {
 
   return (
     <div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--warm)' }}>
-          🔥 {stats.streak}
-          <span style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 400 }}>
-            {' '}
-            day streak
-          </span>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontWeight: 600 }}>Level {stats.level}</div>
-          {stats.freezes > 0 && (
-            <div style={{ fontSize: 13, color: 'var(--calm)' }}>❄ {stats.freezes} freeze</div>
-          )}
-        </div>
-      </div>
+      <TopBar stats={stats} />
 
-      <div style={{ background: 'var(--card)', borderRadius: 8, height: 8, marginBottom: 6 }}>
-        <div
-          style={{
-            width: `${(stats.xpInLevel / stats.xpNeed) * 100}%`,
-            height: '100%',
-            borderRadius: 8,
-            background: 'var(--warm)',
-            transition: 'width 0.4s ease',
-          }}
+      {tab === 'today' && (
+        <Today
+          tasks={tasks}
+          doneToday={doneToday}
+          count={count}
+          streakMessage={streakMessage}
+          todayCounted={stats.todayCounted}
+          chestReady={chestReady}
+          onOpenChest={() => setModal(true)}
+          insightText={insightText}
+          insightTag={insightTag}
+          onTask={onTask}
         />
-      </div>
-      <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 4 }}>
-        {stats.xpInLevel} / {stats.xpNeed} XP · best streak {stats.best}
-      </p>
-      <p
-        style={{
-          color: stats.todayCounted ? 'var(--done)' : 'var(--muted)',
-          fontSize: 13,
-          marginBottom: 20,
-        }}
-      >
-        {streakMessage}
-      </p>
+      )}
 
-      <Commitment hold={doneToday.hold} onHold={(v) => setField('hold', v)} />
-
-      <h1 style={{ marginBottom: 4 }}>Today</h1>
-      <p style={{ color: 'var(--muted)', marginBottom: 12 }}>
-        {count} of {tasks.length} done
-      </p>
-
-      <div style={{ background: 'var(--card)', borderRadius: 8, height: 8, marginBottom: 20 }}>
-        <div
-          style={{
-            width: `${(count / tasks.length) * 100}%`,
-            height: '100%',
-            borderRadius: 8,
-            background: 'var(--done)',
-            transition: 'width 0.4s ease',
-          }}
+      {tab === 'journal' && (
+        <Journal
+          entry={doneToday.jr || {}}
+          readingLine={doneToday.readingLine}
+          onChange={setJournal}
+          onClose={() => setTab('today')}
+          onHistory={() => setScreen('history')}
         />
-      </div>
+      )}
 
-      {next ? (
-        <div
-          style={{
-            background: 'var(--card)',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 20,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div style={{ color: 'var(--muted)', fontSize: 13 }}>Next up</div>
-            <div style={{ fontWeight: 700, fontSize: 18 }}>{next.label}</div>
-            <div style={{ color: 'var(--muted)', fontSize: 14 }}>{next.detail}</div>
+      {tab === 'progress' && (
+        <div>
+          <h1 style={{ marginBottom: 16 }}>Progress</h1>
+          <div style={{ background: 'var(--card)', borderRadius: 16, padding: 16, marginBottom: 14 }}>
+            <div style={{ fontWeight: 700 }}>
+              Level {stats.level} · {stats.xp} XP total
+            </div>
+            <div style={{ color: 'var(--muted)', fontSize: 14, marginTop: 4 }}>
+              Best streak: {stats.best} days · Current: {stats.streak}
+            </div>
           </div>
-          <button
-            onClick={() => onCardClick(next.id)}
-            style={{
-              border: 'none',
-              borderRadius: 12,
-              padding: '12px 24px',
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: 'pointer',
-              background: next.color,
-              color: '#0f1420',
-            }}
-          >
-            Start
-          </button>
-        </div>
-      ) : (
-        <div
-          style={{
-            background: 'var(--card)',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 20,
-            color: 'var(--done)',
-            fontWeight: 600,
-          }}
-        >
-          All four done today. Perfect day ✓
+          <div style={{ color: 'var(--muted)', fontSize: 14 }}>
+            The 90-day map and your insight collection arrive in the next update.
+          </div>
         </div>
       )}
 
-      {tasks.map((t) => {
-        const done = !!doneToday[t.id]
-        return (
-          <div
-            key={t.id}
-            onClick={() => onCardClick(t.id)}
-            style={{
-              background: 'var(--card)',
-              borderLeft: `5px solid ${done ? 'var(--done)' : t.color}`,
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 12,
-              cursor: 'pointer',
-              opacity: done ? 0.7 : 1,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 600 }}>{t.label}</div>
-              <div style={{ color: 'var(--muted)', fontSize: 14 }}>{t.detail}</div>
-            </div>
-            {done && <span style={{ color: 'var(--done)', fontSize: 22 }}>✓</span>}
-          </div>
-        )
-      })}
+      {tab === 'me' && (
+        <Me
+          hold={doneToday.hold}
+          onHold={(v) => setField('hold', v)}
+          onExport={exportData}
+          onImport={() => fileRef.current?.click()}
+        />
+      )}
 
-      <Chest
-        unlocked={allDone}
-        chest={doneToday.chest}
-        onOpen={(reward) => setField('chest', reward)}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={importData}
+        style={{ display: 'none' }}
       />
 
-      <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        <button onClick={() => setScreen('history')} style={linkBtn}>
-          Journal history
+      {tab === 'today' && next && (
+        <button
+          onClick={() => onTask(next.id)}
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            margin: '0 auto',
+            width: 'calc(100% - 32px)',
+            maxWidth: 448,
+            bottom: 'calc(76px + env(safe-area-inset-bottom, 0px))',
+            border: 'none',
+            borderRadius: 16,
+            padding: '16px 0',
+            fontSize: 17,
+            fontWeight: 800,
+            cursor: 'pointer',
+            background: next.color,
+            color: '#0f1420',
+            zIndex: 15,
+            boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+          }}
+        >
+          Start {next.label}
         </button>
-        <button onClick={exportData} style={linkBtn}>
-          Export backup
-        </button>
-        <button onClick={() => fileRef.current?.click()} style={linkBtn}>
-          Import backup
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          onChange={importData}
-          style={{ display: 'none' }}
+      )}
+
+      {modal && (
+        <Chest
+          seen={seen}
+          chest={doneToday.chest}
+          onOpen={(reward) => setField('chest', reward)}
+          onClose={() => {
+            setModal(false)
+            setDismissed(true)
+          }}
         />
-      </div>
+      )}
+
+      <TabBar tab={tab} setTab={setTab} />
     </div>
   )
 }
