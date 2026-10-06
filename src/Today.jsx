@@ -21,7 +21,18 @@ export default function Today({
 
   return (
     <div>
-      <div style={{ color: 'var(--muted)', textAlign: 'center', marginBottom: 12 }}>{dateText}</div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ color: 'var(--muted)' }}>{dateText}</div>
+        {race}
+      </div>
+
       <Ring tasks={tasks} done={doneToday} count={count} />
       <p
         style={{
@@ -33,8 +44,6 @@ export default function Today({
       >
         {streakMessage}
       </p>
-
-      {race}
 
       {chestReady && (
         <div
